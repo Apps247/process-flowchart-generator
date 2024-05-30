@@ -38,31 +38,27 @@ def render_flowchart():
     offset = 0
     nest_level = 1
     max_nest_level = 1
-
-    in_alternate_path = False
-
-    print(df)
+    prev_nest_level = 1
 
     while index < len(df):
         row = df.iloc[index]
-        print(index)
+        print("Analyzing row", index)
         # Extract flowchart elements from the row into FlowchartNode object
         flowchart_node = FlowchartNode.from_spreadsheet_row(row)
-
         print(flowchart_node.description)
 
         # if flowchart_node.description.split(":")[-1].strip().split(' ')[0] == "Proceed":
         if flowchart_node.description.split(":")[-1].strip().split(' ')[0] == "Proceed":
             nest_level -= 1
             index += 1
-            print("Proceed-popping")
             destination_id = flowchart_node.description.split(
                 ":")[-1].strip().split(' ')[-1]
             print("Proceeding to", destination_id)
             offset -= 1
 
             if len(flowchart_nodes) >= 1:
-                flowchart_nodes[list(flowchart_nodes.keys())[-1]].to_ids.append(destination_id)
+                flowchart_nodes[list(flowchart_nodes.keys())
+                                [-1]].to_ids.append(destination_id)
                 # flowchart_nodes[list(flowchart_nodes.keys())[-1]].to_visio_ids.append(flowchart_nodes[destination_id].visioId)
 
             continue
@@ -74,21 +70,23 @@ def render_flowchart():
             PAGE_SPACING_X_FACTOR * (index + offset),
             PAGE_SPACING_Y_FACTOR * nest_level, 2, 1, "Rectangle", 0)
 
-        if len(flowchart_nodes) > 1:
-            flowchart_nodes[list(flowchart_nodes.keys())[-2]].to_ids.append(flowchart_node.id)
-            flowchart_nodes[list(flowchart_nodes.keys())[-2]].to_visio_ids.append(flowchart_node.visioId)
-            
-            connectorId = diagram.addShape(1, 1, 'Dynamic connector', 0)
-            page.connectShapesViaConnector(
-                flowchart_nodes[list(flowchart_nodes.keys())[-2]].visioId, 
-                ConnectionPointPlace.RIGHT,
-                flowchart_node.visioId, 
-                ConnectionPointPlace.LEFT,
-                connectorId)
+        print("Visio ID:", flowchart_node.visioId)
 
         render_text(flowchart_node)
 
         print(flowchart_node.type)
+
+        if len(flowchart_nodes) > 1:
+            flowchart_nodes[list(flowchart_nodes.keys())
+                            [-2]].to_ids.append(flowchart_node.id)
+            flowchart_nodes[list(flowchart_nodes.keys())[-2]
+                            ].to_visio_ids.append(flowchart_node.visioId)
+
+            connect_shapes(nest_level, prev_nest_level, flowchart_nodes[list(flowchart_nodes.keys())[-2]
+                                                                        ], flowchart_node)
+
+        prev_nest_level = nest_level
+
         try:
             if flowchart_node.is_decision():
                 print(flowchart_node.decisions)
@@ -102,7 +100,8 @@ def render_flowchart():
             print("Attribute Error:", e)
             index += 1
 
-        print("End", index)
+        print("Next row to analyze:", index)
+        print()
 
     page.getPageSheet().getPageProps().getPageHeight().setValue(
         PAGE_SPACING_Y_FACTOR * max_nest_level)
@@ -111,6 +110,21 @@ def render_flowchart():
 
     # Save Visio file
     diagram.save(f"{OUTPUT_DIRECTORY}/output.vsdx", SaveFileFormat.VSDX)
+
+
+def connect_shapes(nest_level, prev_nest_level, flowchart_node_1, flowchart_node_2):
+    if (nest_level >= prev_nest_level):
+        connectorShape = Shape()
+        connectorId = diagram.addShape(connectorShape, 'Dynamic connector', 0)
+
+        starting_new_nest_level = (nest_level > prev_nest_level)
+
+        page.connectShapesViaConnector(
+            flowchart_node_1.visioId,
+            ConnectionPointPlace.TOP if starting_new_nest_level else ConnectionPointPlace.RIGHT,
+            flowchart_node_2.visioId,
+            ConnectionPointPlace.BOTTOM if starting_new_nest_level else ConnectionPointPlace.LEFT,
+            connectorId)
 
 
 def render_text(flowchart_node):

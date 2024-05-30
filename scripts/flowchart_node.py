@@ -21,7 +21,6 @@ class FlowchartNode:
         if 'nan' in decisions:
             decisions.remove('nan')
 
-        print(decisions)
         try:
             if len(decisions) > 0:
                 type = "Decision"
