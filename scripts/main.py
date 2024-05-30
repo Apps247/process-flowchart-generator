@@ -41,6 +41,8 @@ def render_flowchart():
 
     in_alternate_path = False
 
+    print(df)
+
     while index < len(df):
         row = df.iloc[index]
         print(index)
