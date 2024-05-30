@@ -1,5 +1,5 @@
 class FlowchartNode:
-    def __init__(self, id, visioId, type, title, description, actor=None, decisions=None):
+    def __init__(self, id, visioId, type, title, description, actor=None, decisions=None, to_ids = [], to_visio_ids = []):
         self.id = id
         self.visioId = visioId
         self.type = type
@@ -7,6 +7,8 @@ class FlowchartNode:
         self.description = description
         self.actor = actor
         self.decisions = decisions
+        self.to_ids = to_ids
+        self.to_visio_ids = to_visio_ids
 
     @staticmethod
     def from_spreadsheet_row(row):

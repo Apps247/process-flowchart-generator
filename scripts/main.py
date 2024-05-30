@@ -1,18 +1,18 @@
-# Main script to automate the process of generating Visio flowcharts from notes on a spreadsheet
-# TODO: Add Aspose License details
-# ? Aspose Docs: https://docs.aspose.com/diagram/java/working-with-visio-shape-data/#use-connection-indexes-to-connect-shapes
-
-
 import jpype
 import pandas as pd
 from flowchart_node import FlowchartNode
+import asposediagram
 
 # Start JVM
 if not jpype.isJVMStarted():
     jpype.startJVM()
 
-import asposediagram
 from asposediagram.api import *
+
+# Main script to automate the process of generating Visio flowcharts from notes on a spreadsheet
+# TODO: Add Aspose License details
+# ? Aspose Docs: https://docs.aspose.com/diagram/java/working-with-visio-shape-data/#use-connection-indexes-to-connect-shapes
+
 
 OUTPUT_DIRECTORY = "../output"
 INPUT_DIRECTORY = "../input"
@@ -29,7 +29,7 @@ df = pd.read_excel(input_file)
 template_file = f"{TEMPLATE_DIRECTORY}/Basic Shapes.vss"
 diagram = Diagram(template_file)
 
-flowchart_nodes = []
+flowchart_nodes = {}
 page = diagram.getPages().getPage("Page-1")
 
 
@@ -56,18 +56,35 @@ def render_flowchart():
             nest_level -= 1
             index += 1
             print("Proceed-popping")
-            print("Proceed to", flowchart_node.description.split(
-                ":")[-1].strip().split(' ')[-1])
+            destination_id = flowchart_node.description.split(
+                ":")[-1].strip().split(' ')[-1]
+            print("Proceeding to", destination_id)
             offset -= 1
+
+            if len(flowchart_nodes) >= 1:
+                flowchart_nodes[list(flowchart_nodes.keys())[-1]].to_ids.append(destination_id)
+                # flowchart_nodes[list(flowchart_nodes.keys())[-1]].to_visio_ids.append(flowchart_nodes[destination_id].visioId)
+
             continue
 
-        flowchart_nodes.append(flowchart_node)
-
         # Add the FlowchartNode object to the diagram
+        flowchart_nodes[flowchart_node.id] = flowchart_node
 
         flowchart_node.visioId = diagram.addShape(
             PAGE_SPACING_X_FACTOR * (index + offset),
             PAGE_SPACING_Y_FACTOR * nest_level, 2, 1, "Rectangle", 0)
+
+        if len(flowchart_nodes) > 1:
+            flowchart_nodes[list(flowchart_nodes.keys())[-2]].to_ids.append(flowchart_node.id)
+            flowchart_nodes[list(flowchart_nodes.keys())[-2]].to_visio_ids.append(flowchart_node.visioId)
+            
+            connectorId = diagram.addShape(1, 1, 'Dynamic connector', 0)
+            page.connectShapesViaConnector(
+                flowchart_nodes[list(flowchart_nodes.keys())[-2]].visioId, 
+                ConnectionPointPlace.RIGHT,
+                flowchart_node.visioId, 
+                ConnectionPointPlace.LEFT,
+                connectorId)
 
         render_text(flowchart_node)
 
