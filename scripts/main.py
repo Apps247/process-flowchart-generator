@@ -18,7 +18,7 @@ OUTPUT_DIRECTORY = "../output"
 INPUT_DIRECTORY = "../input"
 TEMPLATE_DIRECTORY = "../templates"
 
-PAGE_SPACING_X_FACTOR = 2.5
+PAGE_SPACING_X_FACTOR = 3.3
 PAGE_SPACING_Y_FACTOR = 2.5
 
 # Read meeting notes spreadsheet file from input directory
@@ -38,13 +38,23 @@ def render_flowchart():
     offset = 0
     nest_level = 1
     max_nest_level = 1
-    prev_nest_level = 1
+
+    # stack of nodes to proceed from when proceed popping
+    proceed_pop_reference_points = []
+
+    # List all available masters
+    for i in range(diagram.getMasters().getCount()):
+        print(diagram.getMasters().get(i).getName())
+    print()
 
     while index < len(df):
+        print(nest_level)
+
         row = df.iloc[index]
         print("Analyzing row", index)
         # Extract flowchart elements from the row into FlowchartNode object
         flowchart_node = FlowchartNode.from_spreadsheet_row(row)
+        flowchart_node.nest_level = nest_level
         print(flowchart_node.description)
 
         # if flowchart_node.description.split(":")[-1].strip().split(' ')[0] == "Proceed":
@@ -55,11 +65,12 @@ def render_flowchart():
                 ":")[-1].strip().split(' ')[-1]
             print("Proceeding to", destination_id)
             offset -= 1
-
+            print("From:", flowchart_node.id, "Destination:", destination_id)
             if len(flowchart_nodes) >= 1:
+                print("Adding jump from", list(flowchart_nodes.keys())
+                      [-1], "to", destination_id)
                 flowchart_nodes[list(flowchart_nodes.keys())
-                                [-1]].to_ids.append(destination_id)
-                # flowchart_nodes[list(flowchart_nodes.keys())[-1]].to_visio_ids.append(flowchart_nodes[destination_id].visioId)
+                                [-1]].add_jump(destination_id)
 
             continue
 
@@ -68,7 +79,11 @@ def render_flowchart():
 
         flowchart_node.visioId = diagram.addShape(
             PAGE_SPACING_X_FACTOR * (index + offset),
-            PAGE_SPACING_Y_FACTOR * nest_level, 2, 1, "Rectangle", 0)
+            PAGE_SPACING_Y_FACTOR * nest_level,
+            2, 1,
+            "Square" if flowchart_node.is_decision() else "Rectangle",
+            # flowchart_node.type,
+            0)
 
         print("Visio ID:", flowchart_node.visioId)
 
@@ -77,21 +92,29 @@ def render_flowchart():
         print(flowchart_node.type)
 
         if len(flowchart_nodes) > 1:
-            flowchart_nodes[list(flowchart_nodes.keys())
-                            [-2]].to_ids.append(flowchart_node.id)
-            flowchart_nodes[list(flowchart_nodes.keys())[-2]
-                            ].to_visio_ids.append(flowchart_node.visioId)
+            # If popping out of a nest level, connect previously proceeding nodes to the current node
+            print("Proceed Pop Reference Points:", proceed_pop_reference_points)
+            print(nest_level)
+            print(flowchart_nodes[list(flowchart_nodes.keys())[-2]].description)
+            print(flowchart_nodes[list(flowchart_nodes.keys())[-2]].nest_level)
+            
+            if len(proceed_pop_reference_points) > 0 and nest_level < flowchart_nodes[list(flowchart_nodes.keys())
+                                                                                    [-2]].nest_level:
+                print(proceed_pop_reference_points[-1].description, "Popped")
+                connect_shapes(proceed_pop_reference_points.pop(),
+                            flowchart_node, is_sequential=False)
 
-            connect_shapes(nest_level, prev_nest_level, flowchart_nodes[list(flowchart_nodes.keys())[-2]
-                                                                        ], flowchart_node)
-
-        prev_nest_level = nest_level
+            connect_shapes(flowchart_nodes[list(
+                flowchart_nodes.keys())[-2]], flowchart_node, is_sequential=True)
 
         try:
             if flowchart_node.is_decision():
                 print(flowchart_node.decisions)
                 nest_level += 1
                 max_nest_level += 1
+                proceed_pop_reference_points.append(flowchart_node)
+                print("Proceed Pop Reference Points:",
+                      proceed_pop_reference_points)
                 index += 2
                 offset -= 2
             else:
@@ -103,6 +126,8 @@ def render_flowchart():
         print("Next row to analyze:", index)
         print()
 
+    render_post_conneections()
+
     page.getPageSheet().getPageProps().getPageHeight().setValue(
         PAGE_SPACING_Y_FACTOR * max_nest_level)
     page.getPageSheet().getPageProps().getPageWidth().setValue(
@@ -112,12 +137,26 @@ def render_flowchart():
     diagram.save(f"{OUTPUT_DIRECTORY}/output.vsdx", SaveFileFormat.VSDX)
 
 
-def connect_shapes(nest_level, prev_nest_level, flowchart_node_1, flowchart_node_2):
-    if (nest_level >= prev_nest_level):
+def render_post_conneections():
+    for _, node in flowchart_nodes.items():
+        print("Node ID:", node.id, "To IDs:", node.jump_to_ids)
+        for to_id in node.jump_to_ids:
+            print(node.id, "to", to_id)
+            connect_shapes(node, flowchart_nodes[to_id], is_sequential=False)
+
+
+def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
+    if ((not is_sequential) or (flowchart_node_2.nest_level >= flowchart_node_1.nest_level)):
+        print("Connecting", flowchart_node_1.id, "to", flowchart_node_2.id)
         connectorShape = Shape()
         connectorId = diagram.addShape(connectorShape, 'Dynamic connector', 0)
+        connectorLine = connectorShape.getLine()
+        connectorLine.getEndArrow().setValue(1)
+        connectorLine.getLineWeight().setValue(0.02)
+        connectorLine.getLineColor().getUfe().setF("RGB(0,0,0)")
 
-        starting_new_nest_level = (nest_level > prev_nest_level)
+        starting_new_nest_level = (
+            flowchart_node_2.nest_level > flowchart_node_1.nest_level)
 
         page.connectShapesViaConnector(
             flowchart_node_1.visioId,
@@ -130,9 +169,20 @@ def connect_shapes(nest_level, prev_nest_level, flowchart_node_1, flowchart_node
 def render_text(flowchart_node):
     # Render FlowchartNode text on page
     shape = page.getShapes().getShape(flowchart_node.visioId)
-    text = f"{flowchart_node.description}\n({flowchart_node.actor})".replace(
-        "(nan)", "")
-    shape.getText().getValue().add(Txt(text))
+
+    shape.getText().getValue().clear()
+    shape.getChars().clear()
+
+    shape.getText().getValue().add(Cp(0))
+    shape.getText().getValue().add(Txt(flowchart_node.description + "\n"))
+    shape.getText().getValue().add(Cp(1))
+    shape.getText().getValue().add(
+        Txt(f"({flowchart_node.actor})".replace('(nan)', '')))
+
+    shape.getChars().add(Char())
+    shape.getChars().add(Char())
+    shape.getChars().get(0).getStyle().setValue(StyleValue.BOLD)
+    shape.getChars().get(1).getSize().setValue(0.16)
 
 
 if __name__ == "__main__":
