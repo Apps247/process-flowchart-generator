@@ -20,20 +20,24 @@ TEMPLATE_DIRECTORY = "../templates"
 
 PAGE_SPACING_X_FACTOR = 3.3
 PAGE_SPACING_Y_FACTOR = 2.5
+PAGE_Y_START = 3
 
 # Read meeting notes spreadsheet file from input directory
 input_file = f"{INPUT_DIRECTORY}/Meeting_notes.xlsx"
 df = pd.read_excel(input_file)
 
 # Generate Visio file
-template_file = f"{TEMPLATE_DIRECTORY}/Basic Shapes.vss"
+template_file = f"{TEMPLATE_DIRECTORY}/Flowchart.vstx"
 diagram = Diagram(template_file)
 
 flowchart_nodes = {}
 page = diagram.getPages().getPage("Page-1")
-
+background_page = diagram.getPages().getPage("VBackground-1")
+diagram.getPages().remove(background_page)
 
 def render_flowchart():
+    clear_page(page)
+
     index = 0
     offset = 0
     nest_level = 1
@@ -79,10 +83,10 @@ def render_flowchart():
 
         flowchart_node.visioId = diagram.addShape(
             PAGE_SPACING_X_FACTOR * (index + offset),
-            PAGE_SPACING_Y_FACTOR * nest_level,
+            PAGE_Y_START + PAGE_SPACING_Y_FACTOR * nest_level,
             2, 1,
-            "Square" if flowchart_node.is_decision() else "Rectangle",
-            # flowchart_node.type,
+            # "Square" if flowchart_node.is_decision() else "Rectangle",
+            flowchart_node.type,
             0)
 
         print("Visio ID:", flowchart_node.visioId)
@@ -93,16 +97,21 @@ def render_flowchart():
 
         if len(flowchart_nodes) > 1:
             # If popping out of a nest level, connect previously proceeding nodes to the current node
-            print("Proceed Pop Reference Points:", proceed_pop_reference_points)
+            print("Proceed Pop Reference Points:",
+                  proceed_pop_reference_points)
             print(nest_level)
-            print(flowchart_nodes[list(flowchart_nodes.keys())[-2]].description)
+            print(flowchart_nodes[list(
+                flowchart_nodes.keys())[-2]].description)
             print(flowchart_nodes[list(flowchart_nodes.keys())[-2]].nest_level)
-            
+
             if len(proceed_pop_reference_points) > 0 and nest_level < flowchart_nodes[list(flowchart_nodes.keys())
-                                                                                    [-2]].nest_level:
-                print(proceed_pop_reference_points[-1].description, "Popped")
-                connect_shapes(proceed_pop_reference_points.pop(),
-                            flowchart_node, is_sequential=False)
+                                                                                      [-2]].nest_level:
+                popped_reference_point = proceed_pop_reference_points.pop()
+                print(popped_reference_point.description, "Popped")
+                connect_shapes(popped_reference_point,
+                               flowchart_node, is_sequential=False)
+                flowchart_node.description = popped_reference_point.decisions[0] + ": " + flowchart_node.description
+                render_text(flowchart_node)
 
             connect_shapes(flowchart_nodes[list(
                 flowchart_nodes.keys())[-2]], flowchart_node, is_sequential=True)
@@ -129,7 +138,7 @@ def render_flowchart():
     render_post_conneections()
 
     page.getPageSheet().getPageProps().getPageHeight().setValue(
-        PAGE_SPACING_Y_FACTOR * max_nest_level)
+        PAGE_Y_START + PAGE_SPACING_Y_FACTOR * max_nest_level)
     page.getPageSheet().getPageProps().getPageWidth().setValue(
         PAGE_SPACING_X_FACTOR * (len(flowchart_nodes) + offset))
 
@@ -157,6 +166,7 @@ def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
 
         starting_new_nest_level = (
             flowchart_node_2.nest_level > flowchart_node_1.nest_level)
+        
 
         page.connectShapesViaConnector(
             flowchart_node_1.visioId,
@@ -184,6 +194,11 @@ def render_text(flowchart_node):
     shape.getChars().get(0).getStyle().setValue(StyleValue.BOLD)
     shape.getChars().get(1).getSize().setValue(0.16)
 
+
+def clear_page(page):
+    shapes = list(page.getShapes())  # Create a copy of the list
+    for shape in shapes:
+        page.getShapes().remove(shape)
 
 if __name__ == "__main__":
     render_flowchart()
