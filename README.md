@@ -1,4 +1,4 @@
-# Flowchart Generator
+# Process Flowchart Generator
 
 This project is a Python script that automates the process of generating Visio flowcharts from notes on a spreadsheet.
 
