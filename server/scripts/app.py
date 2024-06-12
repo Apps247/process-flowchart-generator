@@ -2,10 +2,13 @@ import jpype
 import pandas as pd
 from flowchart_node import FlowchartNode
 import asposediagram
-from flask import Flask, request
+from flask import Flask, request, send_file
+from flask_cors import CORS
+
 
 # Start JVM
 if not jpype.isJVMStarted():
+    print("Started JVM")
     jpype.startJVM()
 
 from asposediagram.api import *
@@ -17,6 +20,7 @@ license.setLicense("Aspose.DiagramforPythonviaJava.lic")
 # ? Aspose Docs: https://docs.aspose.com/diagram/java/working-with-visio-shape-data/#use-connection-indexes-to-connect-shapes
 
 app = Flask(__name__)
+CORS(app)
 
 OUTPUT_DIRECTORY = "../output"
 INPUT_DIRECTORY = "../input"
@@ -31,8 +35,17 @@ def generate_flowchart():
     
     # Read meeting notes spreadsheet file from input directory
     input_data = request.get_json()
-    df = pd.DataFrame(input_data)
+    print(input_data)
+    if (input_data[0]['Step ID'].lower() == "Step"):
+        df = pd.DataFrame(input_data[1:])
+    else:
+        df = pd.DataFrame(input_data)
+
     print(df)
+
+    if not jpype.isJVMStarted():
+        print("Started JVM")
+        jpype.startJVM()
 
     # Generate Visio file
     template_file = f"{TEMPLATE_DIRECTORY}/Flowchart.vstx"
@@ -143,17 +156,24 @@ def generate_flowchart():
 
         render_post_connections()
 
-        diagram.getPages().getPage(0).getPageSheet().getPageLayout().getLineAdjustFrom().setValue(LineAdjustFromValue.ALL_LINES);
+        # ! Not working
+        # Todo: fix
+        # diagram.getPages().getPage(0).getPageSheet().getPageLayout().getLineAdjustFrom().setValue(LineAdjustFromValue.ALL_LINES);
 
-        flowChartOptions = LayoutOptions()
-        flowChartOptions.setLayoutStyle(LayoutStyle.FLOW_CHART);
-        flowChartOptions.setSpaceShapes(1);
-        flowChartOptions.setEnlargePage(True);
-        flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
-        diagram.layout(flowChartOptions)
+        # ! Not working
+        # Todo: fix
+        # flowChartOptions = LayoutOptions()
+        # flowChartOptions.setLayoutStyle(LayoutStyle.FLOW_CHART);
+        # flowChartOptions.setSpaceShapes(1);
+        # flowChartOptions.setEnlargePage(True);
+        # flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
+        # diagram.layout(flowChartOptions)
 
         # Save Visio file
-        diagram.save(f"{OUTPUT_DIRECTORY}/output.vsdx", SaveFileFormat.VSDX)
+        print("Diagram Generated")
+        diagram.save(f"output/output.vsdx", SaveFileFormat.VSDX)
+        print("Diagram Saved")
+        return 0
 
     def render_post_connections():
         for _, node in flowchart_nodes.items():
@@ -184,9 +204,11 @@ def generate_flowchart():
                 connectorId)
 
     def render_text(flowchart_node):
+        print("Rendering text for", flowchart_node.id)
+        print(flowchart_node.visioId)
+        print(flowchart_node.description)
         # Render FlowchartNode text on page
         shape = page.getShapes().getShape(flowchart_node.visioId)
-
         shape.getText().getValue().clear()
         shape.getChars().clear()
         shape.getChars().add(Char())
@@ -194,12 +216,18 @@ def generate_flowchart():
         shape.getChars().get(0).getStyle().setValue(StyleValue.BOLD)
         shape.getChars().get(1).getSize().setValue(0.16)
 
+    def clear_page(page):
+        shapes = list(page.getShapes())  # Create a copy of the list
+        for shape in shapes:
+            page.getShapes().remove(shape)
 
-def clear_page(page):
-    shapes = list(page.getShapes())  # Create a copy of the list
-    for shape in shapes:
-        page.getShapes().remove(shape)
+    result = render_flowchart()
+    if result == 0:
+        return send_file("output/output.vsdx", as_attachment=True)
+    else:
+        return render_text("Sorry, an error was encountered")
+    
 
 
 
-jpype.shutdownJVM()
+# jpype.shutdownJVM()

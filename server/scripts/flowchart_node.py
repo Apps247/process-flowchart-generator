@@ -15,6 +15,8 @@ class FlowchartNode:
 
     @staticmethod
     def from_spreadsheet_row(row):
+        print("ROW IS")
+        print(row)
         id = str(row["Step ID"]).strip()
         description = str(row["Description"]).strip()
         actor = str(row["Responsible"]).strip()

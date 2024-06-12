@@ -4,13 +4,8 @@ import * as XLSX from 'xlsx/xlsx.mjs';
 import './App.css'
 
 function App() {
+  const columnLabels = ['Step ID', 'Description', 'Responsible', 'Decision'];
   const initialData = [
-    [
-      { value: 'Step', style: { fontWeight: 'bold' } },
-      { value: 'Description', style: { fontWeight: 'bold' } },
-      { value: 'Responsible', style: { fontWeight: 'bold' } },
-      { value: 'Decision', style: { fontWeight: 'bold' } }
-    ],
     [{ value: '' }, { value: '' }, { value: '' }, { value: '' }],
     [{ value: '' }, { value: '' }, { value: '' }, { value: '' }],
     [{ value: '' }, { value: '' }, { value: '' }, { value: '' }],
@@ -48,29 +43,33 @@ function App() {
   }
 
   const convertExcelToVisio = () => {
-    // console.log(dataRef.current)
-    // console.log(dataRef.current[0][0].value)
-    console.log(dataRef.current.map(row => row[0].value));
-    // const cleanedData = dataRef.current.map(row => ({
-    //   step: row[0].value,
-    //   description: row[1].value,
-    //   responsible: row[2].value,
-    //   decision: row[3].value
-    // }));
-    // fetch('http://localhost:5000/generate-flowchart', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify(cleanedData),
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     // Handle the response data here
-    //   })
-    //   .catch(error => {
-    //     // Handle any errors here
-    //   });
+    const cleanedData = dataRef.current.map(row => ({
+      'Step ID': row[0].value,
+      Description: row[1].value,
+      Responsible: row[2].value,
+      Decision: row[3].value
+    }));
+    console.log(cleanedData)
+    fetch('http://localhost:5000/generate-flowchart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(cleanedData),
+    })
+      .then(response => response.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'output.vsdx');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
   }
 
   return (
@@ -78,13 +77,13 @@ function App() {
       <div className="container" style={{ display: 'flex', alignItems: 'center' }}>
         <div className="column" style={{ display: "flex", flexDirection: "column" }}>
           <input type="file" onChange={handleFileUpload} />
-          <Spreadsheet data={data} onChange={handleSpreadsheetChange} />
+          <Spreadsheet data={data} columnLabels={columnLabels} onChange={handleSpreadsheetChange} />
         </div>
         <div className="column" style={{ marginLeft: '20px', marginRight: '20px', }}>
           <button onClick={convertExcelToVisio}>Convert</button>
         </div>
         <div className="column">
-
+          <div style={{ width: '500px', height: '400px', backgroundColor: 'white' }}></div>
         </div>
       </div>
     </>
