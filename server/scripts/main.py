@@ -139,19 +139,19 @@ def render_flowchart():
 
     render_post_connections()
 
-    diagram.getPages().getPage(0).getPageSheet().getPageLayout().getLineAdjustFrom().setValue(LineAdjustFromValue.ALL_LINES);
+    # diagram.getPages().getPage(0).getPageSheet().getPageLayout().getLineAdjustFrom().setValue(LineAdjustFromValue.ALL_LINES);
 
-    # page.getPageSheet().getPageProps().getPageHeight().setValue(
-    #     PAGE_Y_START + PAGE_SPACING_Y_FACTOR * max_nest_level)
-    # page.getPageSheet().getPageProps().getPageWidth().setValue(
-    #     PAGE_SPACING_X_FACTOR * (len(flowchart_nodes) + offset))
+    # # page.getPageSheet().getPageProps().getPageHeight().setValue(
+    # #     PAGE_Y_START + PAGE_SPACING_Y_FACTOR * max_nest_level)
+    # # page.getPageSheet().getPageProps().getPageWidth().setValue(
+    # #     PAGE_SPACING_X_FACTOR * (len(flowchart_nodes) + offset))
     
-    flowChartOptions = LayoutOptions()
-    flowChartOptions.setLayoutStyle(LayoutStyle.FLOW_CHART);
-    flowChartOptions.setSpaceShapes(1);
-    flowChartOptions.setEnlargePage(True);
-    flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
-    diagram.layout(flowChartOptions)
+    # flowChartOptions = LayoutOptions()
+    # flowChartOptions.setLayoutStyle(LayoutStyle.FLOW_CHART);
+    # flowChartOptions.setSpaceShapes(1);
+    # flowChartOptions.setEnlargePage(True);
+    # flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
+    # diagram.layout(flowChartOptions)
 
 
     # Save Visio file
@@ -179,7 +179,6 @@ def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
 
         starting_new_nest_level = (
             flowchart_node_2.nest_level > flowchart_node_1.nest_level)
-        
 
         page.connectShapesViaConnector(
             flowchart_node_1.visioId,

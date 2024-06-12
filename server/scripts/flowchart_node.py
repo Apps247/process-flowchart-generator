@@ -18,10 +18,14 @@ class FlowchartNode:
         print("ROW IS")
         print(row)
         id = str(row["Step ID"]).strip()
+        print("ID IS", id)
         description = str(row["Description"]).strip()
+        print("DESCRIPTION IS", description)
         actor = str(row["Responsible"]).strip()
+        print("ACTOR IS", actor)
         decisions = [s.strip()
                      for s in str(row["Decision"]).strip().split("/")]
+        print("DECISIONS ARE", decisions)
         if '' in decisions:
             decisions.remove('')
         if 'nan' in decisions:
@@ -35,7 +39,11 @@ class FlowchartNode:
         except AttributeError:
             pass
 
-        return FlowchartNode(id, None, type, None, description, actor, decisions, [])
+        fcn = FlowchartNode(id, None, type, None, description, actor, decisions, [])
+        print("FCN IS", fcn)
+        print("FCN DECISIONS ARE", fcn.decisions)
+        print("FCN DESCRIPTION IS", fcn.description)
+        return fcn
 
     def is_decision(self):
         return self.type == "Decision"

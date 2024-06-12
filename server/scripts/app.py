@@ -30,19 +30,22 @@ PAGE_SPACING_X_FACTOR = 3.3
 PAGE_SPACING_Y_FACTOR = 2.5
 PAGE_Y_START = 3
 
+
 @app.route('/generate-flowchart', methods=['POST'])
 def generate_flowchart():
     print("Generating flowchart...")
-    
+
     # Read meeting notes spreadsheet file from input directory
     input_data = request.get_json()
     print(input_data)
-    if (input_data[0]['Step ID'].lower() == "Step"):
-        df = pd.DataFrame(input_data[1:])
-    else:
-        df = pd.DataFrame(input_data)
 
-    print(df)
+    # Remove empty rows of data
+    cleaned_data = input_data
+    print("CD0")
+    print(cleaned_data)
+    cleaned_data = [row for row in cleaned_data if any(row['Description'].strip()) or any(row['Decision'].strip()) or any(row['Responsible'].strip())]
+
+    print(cleaned_data)
 
     if not jpype.isJVMStarted():
         print("Started JVM")
@@ -73,10 +76,10 @@ def generate_flowchart():
             print(diagram.getMasters().get(i).getName())
         print()
 
-        while index < len(df):
+        while index < len(cleaned_data):
             print(nest_level)
 
-            row = df.iloc[index]
+            row = cleaned_data[index]
             print("Analyzing row", index)
             # Extract flowchart elements from the row into FlowchartNode object
             flowchart_node = FlowchartNode.from_spreadsheet_row(row)
@@ -90,7 +93,8 @@ def generate_flowchart():
                     ":")[-1].strip().split(' ')[-1]
                 print("Proceeding to", destination_id)
                 offset -= 1
-                print("From:", flowchart_node.id, "Destination:", destination_id)
+                print("From:", flowchart_node.id,
+                      "Destination:", destination_id)
                 if len(flowchart_nodes) >= 1:
                     print("Adding jump from", list(flowchart_nodes.keys())
                           [-1], "to", destination_id)
@@ -122,7 +126,8 @@ def generate_flowchart():
                 print(nest_level)
                 print(flowchart_nodes[list(
                     flowchart_nodes.keys())[-2]].description)
-                print(flowchart_nodes[list(flowchart_nodes.keys())[-2]].nest_level)
+                print(flowchart_nodes[list(
+                    flowchart_nodes.keys())[-2]].nest_level)
 
                 if len(proceed_pop_reference_points) > 0 and nest_level < flowchart_nodes[list(flowchart_nodes.keys())
                                                                                           [-2]].nest_level:
@@ -130,7 +135,8 @@ def generate_flowchart():
                     print(popped_reference_point.description, "Popped")
                     connect_shapes(popped_reference_point,
                                    flowchart_node, is_sequential=False)
-                    flowchart_node.description = popped_reference_point.decisions[0] + ": " + flowchart_node.description
+                    flowchart_node.description = popped_reference_point.decisions[0] + \
+                        ": " + flowchart_node.description
                     render_text(flowchart_node)
 
                 connect_shapes(flowchart_nodes[list(
@@ -169,15 +175,15 @@ def generate_flowchart():
         # flowChartOptions.setEnlargePage(True);
         # flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
         # diagram.layout(flowChartOptions)
-
-        # Save Visio file
         print("Diagram Generated")
-        diagram.save(f"output/output.vsdx", SaveFileFormat.VSDX)
-        print("Diagram Saved")
 
-        # Generate Image for preview
+        # Save Image for preview
         diagram.save(f"output/output.png", SaveFileFormat.PNG)
         print("Image Saved")
+
+        # Save Visio file
+        diagram.save(f"output/output.vsdx", SaveFileFormat.VSDX)
+        print("Diagram Saved")
 
         return 0
 
@@ -186,14 +192,17 @@ def generate_flowchart():
             print("Node ID:", node.id, "To IDs:", node.jump_to_ids)
             for to_id in node.jump_to_ids:
                 print(node.id, "to", to_id)
-                connect_shapes(node, flowchart_nodes[to_id], is_sequential=False)
+                connect_shapes(
+                    node, flowchart_nodes[to_id], is_sequential=False)
 
     def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
         if ((not is_sequential) or (flowchart_node_2.nest_level >= flowchart_node_1.nest_level)):
             print("Connecting", flowchart_node_1.id, "to", flowchart_node_2.id)
             connectorShape = Shape()
-            connectorId = diagram.addShape(connectorShape, 'Dynamic connector', 0)
-            connectorShape.getLayout().getConFixedCode().setValue(ConFixedCodeValue.REROUTE_FREELY)
+            connectorId = diagram.addShape(
+                connectorShape, 'Dynamic connector', 0)
+            connectorShape.getLayout().getConFixedCode().setValue(
+                ConFixedCodeValue.REROUTE_FREELY)
             connectorLine = connectorShape.getLine()
             connectorLine.getEndArrow().setValue(1)
             connectorLine.getLineWeight().setValue(0.02)
@@ -210,13 +219,20 @@ def generate_flowchart():
                 connectorId)
 
     def render_text(flowchart_node):
-        print("Rendering text for", flowchart_node.id)
-        print(flowchart_node.visioId)
-        print(flowchart_node.description)
         # Render FlowchartNode text on page
         shape = page.getShapes().getShape(flowchart_node.visioId)
+        print("Rendering text for shape", flowchart_node.visioId)
+        print("Description:", flowchart_node.description)
+
         shape.getText().getValue().clear()
         shape.getChars().clear()
+
+        shape.getText().getValue().add(Cp(0))
+        shape.getText().getValue().add(Txt(flowchart_node.description + "\n"))
+        shape.getText().getValue().add(Cp(1))
+        shape.getText().getValue().add(
+            Txt(f"({flowchart_node.actor})".replace('(nan)', '')))
+
         shape.getChars().add(Char())
         shape.getChars().add(Char())
         shape.getChars().get(0).getStyle().setValue(StyleValue.BOLD)
@@ -236,8 +252,6 @@ def generate_flowchart():
         return send_file("output/output.zip", as_attachment=True)
     else:
         return render_text("Sorry, an error was encountered")
-    
-
 
 
 # jpype.shutdownJVM()

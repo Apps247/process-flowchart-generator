@@ -37,6 +37,9 @@ function App() {
       const sheet = workbook.Sheets[sheetName]
       const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 })
       const spreadsheetData = sheetData.map(row => row.map(cell => ({ value: cell })))
+      if (spreadsheetData[0][0].value === columnLabels[0]) {
+        spreadsheetData.shift();
+      }
       dataRef.current = spreadsheetData;
       setData(dataRef.current)
     }
@@ -47,11 +50,12 @@ function App() {
     document.getElementById("download-link")?.remove();
     document.getElementById("output-preview").style.display = 'none';
     document.getElementById("output-preview").src = "";
+    console.log(dataRef.current)
     const cleanedData = dataRef.current.map(row => ({
-      'Step ID': row[0].value,
-      Description: row[1].value,
-      Responsible: row[2].value,
-      Decision: row[3].value
+      'Step ID': row[0]?.value,
+      Description: row[1] ? row[1].value : '',
+      Responsible: row[2] ? row[2].value : '',
+      Decision: row[3] ? row[3].value : ''
     }));
     console.log(cleanedData)
     fetch('http://localhost:5000/generate-flowchart', {
@@ -71,6 +75,7 @@ function App() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.textContent = 'Download Visio File';
+            link.id = 'download-link';
             link.href = url;
             link.setAttribute('download', 'output.vsdx');
             document.getElementById("output").appendChild(link);
@@ -102,7 +107,7 @@ function App() {
     <>
       <div className="container" style={{ display: 'flex', alignItems: 'center'}}>
         <div className="column" style={{ display: "flex", flexDirection: "column" }}>
-          <input type="file" onChange={handleFileUpload} />
+          <input type="file" accept=".xlsx, .csv" onChange={handleFileUpload} />
           <Spreadsheet data={data} columnLabels={columnLabels} onChange={handleSpreadsheetChange} />
         </div>
         <div className="column" style={{ marginLeft: '20px', marginRight: '20px', }}>
