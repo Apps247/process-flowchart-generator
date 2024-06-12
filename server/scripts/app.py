@@ -4,6 +4,7 @@ from flowchart_node import FlowchartNode
 import asposediagram
 from flask import Flask, request, send_file
 from flask_cors import CORS
+import zipfile
 
 
 # Start JVM
@@ -173,6 +174,11 @@ def generate_flowchart():
         print("Diagram Generated")
         diagram.save(f"output/output.vsdx", SaveFileFormat.VSDX)
         print("Diagram Saved")
+
+        # Generate Image for preview
+        diagram.save(f"output/output.png", SaveFileFormat.PNG)
+        print("Image Saved")
+
         return 0
 
     def render_post_connections():
@@ -223,7 +229,11 @@ def generate_flowchart():
 
     result = render_flowchart()
     if result == 0:
-        return send_file("output/output.vsdx", as_attachment=True)
+        # Zip the output files
+        with zipfile.ZipFile("output/output.zip", "w") as zipf:
+            zipf.write("output/output.vsdx", "output.vsdx")
+            zipf.write("output/output.png", "output.png")
+        return send_file("output/output.zip", as_attachment=True)
     else:
         return render_text("Sorry, an error was encountered")
     

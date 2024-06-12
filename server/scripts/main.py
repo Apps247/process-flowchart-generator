@@ -192,6 +192,8 @@ def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
 def render_text(flowchart_node):
     # Render FlowchartNode text on page
     shape = page.getShapes().getShape(flowchart_node.visioId)
+    print("Rendering text for shape", flowchart_node.visioId)
+    print("Description:", flowchart_node.description)
 
     shape.getText().getValue().clear()
     shape.getChars().clear()

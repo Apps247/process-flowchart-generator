@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import Spreadsheet from "react-spreadsheet";
 import * as XLSX from 'xlsx/xlsx.mjs';
+import JSZip from 'jszip';
 import './App.css'
 
 function App() {
@@ -43,6 +44,9 @@ function App() {
   }
 
   const convertExcelToVisio = () => {
+    document.getElementById("download-link")?.remove();
+    document.getElementById("output-preview").style.display = 'none';
+    document.getElementById("output-preview").src = "";
     const cleanedData = dataRef.current.map(row => ({
       'Step ID': row[0].value,
       Description: row[1].value,
@@ -58,14 +62,36 @@ function App() {
       body: JSON.stringify(cleanedData),
     })
       .then(response => response.blob())
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'output.vsdx');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+      .then(JSZip.loadAsync)
+      .then(zip => {
+        // Extract the Visio file
+        const visioFile = zip.files['output.vsdx'];
+        if (visioFile) {
+          visioFile.async('blob').then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.textContent = 'Download Visio File';
+            link.href = url;
+            link.setAttribute('download', 'output.vsdx');
+            document.getElementById("output").appendChild(link);
+            console.log("Visio file ready to download")
+          });
+        }
+
+        // Extract the image file
+        const imageFile = zip.files['output.png'];
+        if (imageFile) {
+          imageFile.async('blob').then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            // const link = document.createElement('a');
+            // link.textContent = 'Download Image File';
+            // link.href = url;
+            // link.setAttribute('download', 'output.png');
+            // document.getElementById("output").appendChild(link);
+            document.getElementById("output-preview").src = url;
+            document.getElementById("output-preview").style.display = 'block';
+          });
+        }
       })
       .catch(error => {
         console.error('Error:', error);
@@ -74,7 +100,7 @@ function App() {
 
   return (
     <>
-      <div className="container" style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="container" style={{ display: 'flex', alignItems: 'center'}}>
         <div className="column" style={{ display: "flex", flexDirection: "column" }}>
           <input type="file" onChange={handleFileUpload} />
           <Spreadsheet data={data} columnLabels={columnLabels} onChange={handleSpreadsheetChange} />
@@ -82,8 +108,10 @@ function App() {
         <div className="column" style={{ marginLeft: '20px', marginRight: '20px', }}>
           <button onClick={convertExcelToVisio}>Convert</button>
         </div>
-        <div className="column">
-          <div style={{ width: '500px', height: '400px', backgroundColor: 'white' }}></div>
+        <div id="output" className="column" style={{ display: "flex", flexDirection: "column"}}>
+          <div style={{ width: '500px', height: '400px', backgroundColor: 'white' }}>
+            <img id='output-preview' src="" alt="output" style={{display: 'none', maxWidth: '500px'}} />
+          </div>
         </div>
       </div>
     </>
