@@ -8,6 +8,8 @@ if not jpype.isJVMStarted():
     jpype.startJVM()
 
 from asposediagram.api import *
+license = License()
+license.setLicense("Aspose.DiagramforPythonviaJava.lic")
 
 # Main script to automate the process of generating Visio flowcharts from notes on a spreadsheet
 # TODO: Add Aspose License details
@@ -135,18 +137,28 @@ def render_flowchart():
         print("Next row to analyze:", index)
         print()
 
-    render_post_conneections()
+    render_post_connections()
 
-    page.getPageSheet().getPageProps().getPageHeight().setValue(
-        PAGE_Y_START + PAGE_SPACING_Y_FACTOR * max_nest_level)
-    page.getPageSheet().getPageProps().getPageWidth().setValue(
-        PAGE_SPACING_X_FACTOR * (len(flowchart_nodes) + offset))
+    diagram.getPages().getPage(0).getPageSheet().getPageLayout().getLineAdjustFrom().setValue(LineAdjustFromValue.ALL_LINES);
+
+    # page.getPageSheet().getPageProps().getPageHeight().setValue(
+    #     PAGE_Y_START + PAGE_SPACING_Y_FACTOR * max_nest_level)
+    # page.getPageSheet().getPageProps().getPageWidth().setValue(
+    #     PAGE_SPACING_X_FACTOR * (len(flowchart_nodes) + offset))
+    
+    flowChartOptions = LayoutOptions()
+    flowChartOptions.setLayoutStyle(LayoutStyle.FLOW_CHART);
+    flowChartOptions.setSpaceShapes(1);
+    flowChartOptions.setEnlargePage(True);
+    flowChartOptions.setDirection(LayoutDirection.LEFT_TO_RIGHT);
+    diagram.layout(flowChartOptions)
+
 
     # Save Visio file
     diagram.save(f"{OUTPUT_DIRECTORY}/output.vsdx", SaveFileFormat.VSDX)
 
 
-def render_post_conneections():
+def render_post_connections():
     for _, node in flowchart_nodes.items():
         print("Node ID:", node.id, "To IDs:", node.jump_to_ids)
         for to_id in node.jump_to_ids:
@@ -159,6 +171,7 @@ def connect_shapes(flowchart_node_1, flowchart_node_2, is_sequential=True):
         print("Connecting", flowchart_node_1.id, "to", flowchart_node_2.id)
         connectorShape = Shape()
         connectorId = diagram.addShape(connectorShape, 'Dynamic connector', 0)
+        connectorShape.getLayout().getConFixedCode().setValue(ConFixedCodeValue.REROUTE_FREELY)
         connectorLine = connectorShape.getLine()
         connectorLine.getEndArrow().setValue(1)
         connectorLine.getLineWeight().setValue(0.02)
