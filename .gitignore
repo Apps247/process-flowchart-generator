@@ -1,3 +1,4 @@
-scripts/Aspose.DiagramforPythonviaJava.lic
+server/scripts/Aspose.DiagramforPythonviaJava.lic
+**/*.lic
 output/output.vsdx
 input/Meeting_notes.xlsx
